@@ -15,15 +15,13 @@ urls = [
     "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgY291bnRyeT0iQ04iICYmIHJlZ2lvbj0i5LqR5Y2XIg%3D%3D",  # 云南
     "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgY291bnRyeT0iQ04iICYmIHJlZ2lvbj0iQ2hvbmdxaW5nIg%3D%3D",  # 重庆
     "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9IlNoZW56aGVuIg%3D%3D",  # 深圳
-
-"https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9Ikd1YW5nemhvdSI%3D",  # 广州
-
-"https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9IkZvc2hhbiI%3D",  # 佛山
-
-"https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9Ik1hb21pbmci",  #茂名
-"https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9Ik1laXpob3Ui",  # 梅州
-
-"https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9IkRvbmdndWFuIg%3D%3D",  # Hebei (河北)东莞
+    "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9Ikd1YW5nemhvdSI%3D",  # 广州
+    "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9IkZvc2hhbiI%3D",  # 佛山
+    "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9Ik1hb21pbmci",  #茂名
+    "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9Ik1laXpob3Ui",  # 梅州
+    "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSLlub%2Fopb8iICYmIGNpdHk9Ikd1aWdhbmci", #     贵港
+    "https://www.zoomeye.org/searchResult?q=%22iptv%2Flive%2Fzh_cn.js%22%20%2Bsubdivisions:%22%E5%B9%BF%E8%A5%BF%22", # 广西
+    "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9IkRvbmdndWFuIg%3D%3D",  # Hebei (河北)东莞
     "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgY291bnRyeT0iQ04iICYmIHJlZ2lvbj0iR3VpemhvdSI%3D",  # 贵州
     "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgY291bnRyeT0iQ04iICYmIHJlZ2lvbj0iU2hhbnhpIg%3D%3D",  # 山西
     "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgY291bnRyeT0iQ04iICYmIHJlZ2lvbj0iR3Vhbmd4aSBaaHVhbmd6dSI%3D",  # 广西
@@ -49,7 +47,7 @@ def modify_urls(url):
 
 def is_url_accessible(url):
     try:
-        response = requests.get(url, timeout=0.5)
+        response = requests.get(url, timeout=5.0)
         if response.status_code == 200:
             return url
     except requests.exceptions.RequestException:
@@ -69,7 +67,7 @@ for url in urls:
     driver = webdriver.Chrome(options=chrome_options)
     # 使用WebDriver访问网页
     driver.get(url)  # 将网址替换为你要访问的网页地址
-    time.sleep(10)
+    time.sleep(15)
     # 获取网页内容
     page_content = driver.page_source
 
@@ -238,13 +236,13 @@ def worker():
                 file_size = len(content)
                 # print(f"文件大小：{file_size} 字节")
                 download_speed = file_size / response_time / 1024
-                # print(f"下载速度：{download_speed:.3f} kB/s")
+                # print(f"下载速度：{download_speed:.1f} kB/s")
                 normalized_speed = min(max(download_speed / 1024, 0.001), 100)  # 将速率从kB/s转换为MB/s并限制在1~100之间
-                #print(f"标准化后的速率：{normalized_speed:.3f} MB/s")
+                #print(f"标准化后的速率：{normalized_speed:.1f} MB/s")
 
                 # 删除下载的文件
                 os.remove(ts_lists_0)
-                result = channel_name, channel_url, f"{normalized_speed:.3f} MB/s"
+                result = channel_name, channel_url, f"{normalized_speed:.1f} MB/s"
                 results.append(result)
                 numberx = (len(results) + len(error_channels)) / len(channels) * 100
                 print(f"可用频道：{len(results)} 个 , 不可用频道：{len(error_channels)} 个 , 总频道：{len(channels)} 个 ,总进度：{numberx:.2f} %。")
