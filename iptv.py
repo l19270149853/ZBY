@@ -20,7 +20,6 @@ urls = [
     "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9Ik1hb21pbmci",  #茂名
     "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9Ik1laXpob3Ui",  # 梅州
     "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSLlub%2Fopb8iICYmIGNpdHk9Ikd1aWdhbmci", #     贵港
-    "https://www.zoomeye.org/searchResult?q=%22iptv%2Flive%2Fzh_cn.js%22%20%2Bsubdivisions:%22%E5%B9%BF%E8%A5%BF%22", # 广西
     "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgcmVnaW9uPSJHdWFuZ2RvbmciICYmIGNpdHk9IkRvbmdndWFuIg%3D%3D",  # Hebei (河北)东莞
     "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgY291bnRyeT0iQ04iICYmIHJlZ2lvbj0iR3VpemhvdSI%3D",  # 贵州
     "https://fofa.info/result?qbase64=ImlwdHYvbGl2ZS96aF9jbi5qcyIgJiYgY291bnRyeT0iQ04iICYmIHJlZ2lvbj0iU2hhbnhpIg%3D%3D",  # 山西
@@ -116,7 +115,7 @@ for url in urls:
     # 遍历网址列表，获取JSON文件并解析
     for url in valid_urls:
         try:
-            # 发送GET请求获取JSON文件，设置超时时间为0.5秒
+            # 发送GET请求获取JSON文件，设置超时时间为2.1秒
             ip_start_index = url.find("//") + 2
             ip_dot_start = url.find(".") + 1
             ip_index_second = url.find("/", ip_dot_start)
@@ -125,7 +124,7 @@ for url in urls:
             url_x = f"{base_url}{ip_address}"
 
             json_url = f"{url}"
-            response = requests.get(json_url, timeout=0.5)
+            response = requests.get(json_url, timeout=2.1)
             json_data = response.json()
 
             try:
