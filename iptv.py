@@ -11,21 +11,7 @@ import eventlet
 eventlet.monkey_patch()
 
 urls = [
-    "https://d.kstore.dev/download/10694/iptvID.txt",  # 四川
-    "",  # 云南
-    "",  # 重庆
-    "",  # 深圳
-    "",  # 广州
-    "",  # 佛山
-    "",  #茂名
-    "",  # 梅州
-    "", #     贵港
-    "",  # Hebei (河北)东莞
-    "",  # 贵州
-    "",  # 山西
-    "",  # 广西
-    ""  # 湖南
-    "",  # Shanxi (山西)
+    "https://d.kstore.dev/download/10694/iptvID.txt",  # Shanxi (山西)
     ]
 
 def modify_urls(url):
