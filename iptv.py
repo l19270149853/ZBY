@@ -211,7 +211,7 @@ def worker():
             # 多获取的视频数据进行5秒钟限制
             with eventlet.Timeout(9, False):
                 start_time = time.time()
-                content = requests.get(ts_url, timeout = 1).content
+                content = requests.get(ts_url, timeout = 3).content
                 end_time = time.time()
                 response_time = (end_time - start_time) * 1
 
@@ -221,13 +221,13 @@ def worker():
                 file_size = len(content)
                 # print(f"文件大小：{file_size} 字节")
                 download_speed = file_size / response_time / 1024
-                # print(f"下载速度：{download_speed:.4f} kB/s")
+                # print(f"下载速度：{download_speed:.3f} kB/s")
                 normalized_speed = min(max(download_speed / 1024, 0.001), 100)  # 将速率从kB/s转换为MB/s并限制在1~100之间
                 #print(f"标准化后的速率：{normalized_speed:.1f} MB/s")
 
                 # 删除下载的文件
                 os.remove(ts_lists_0)
-                result = channel_name, channel_url, f"{normalized_speed:.1f} MB/s"
+                result = channel_name, channel_url, f"{normalized_speed:.3f} MB/s"
                 results.append(result)
                 numberx = (len(results) + len(error_channels)) / len(channels) * 100
                 print(f"可用频道：{len(results)} 个 , 不可用频道：{len(error_channels)} 个 , 总频道：{len(channels)} 个 ,总进度：{numberx:.2f} %。")
