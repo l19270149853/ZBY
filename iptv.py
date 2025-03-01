@@ -209,7 +209,7 @@ def worker():
             ts_url = channel_url_t + ts_lists[0]  # 拼接单个视频片段下载链接
 
             # 多获取的视频数据进行5秒钟限制
-            with eventlet.Timeout(5, False):
+            with eventlet.Timeout(9, False):
                 start_time = time.time()
                 content = requests.get(ts_url, timeout = 1).content
                 end_time = time.time()
@@ -267,7 +267,7 @@ results.sort(key=lambda x: (x[0], -float(x[2].split()[0])))
 results.sort(key=lambda x: channel_key(x[0]))
 
 
-result_counter = 8  # 每个频道需要的个数
+result_counter = 80  # 每个频道需要的个数
 
 with open("lives.txt", 'w', encoding='utf-8') as file:
     channel_counters = {}
