@@ -1,38 +1,50 @@
-name: update-lives-list
+name: update-lives1-list
 
 on:
   schedule:
-    - cron: '0 21 * * *'
+    - cron: '0 21 * * *'  # 每天 21:00 UTC 触发
   push:
     branches:
-      - main
+      - main  # 当 main 分支有推送时触发
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # 使用最新的 Ubuntu 环境
 
     steps:
+      # 步骤 1：拉取代码
       - name: Checkout code
         uses: actions/checkout@v2
-    
+
+      # 步骤 2：设置 Python 环境
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.x
+          python-version: '3.x'  # 使用 Python 3.9
 
+      # 步骤 3：安装依赖
       - name: Install dependencies
-        run: pip install selenium requests futures eventlet
+        run: |
+          python -m pip install --upgrade pip
+          pip install selenium requests futures eventlet
 
+      # 步骤 4：运行 Python 脚本
       - name: Run iptv
         run: python ${{ github.workspace }}/iptv.py
 
-        
-      - name: 提交
+      # 步骤 5：提交生成的文件
+      - name: Commit and push changes
         run: |
           git config --local user.email "362213335lkh@gmail.com"
           git config --local user.name "l19270149853"
           git add .
-          git commit *.txt -m "Add generated file"
-          git commit *.m3u -m "Add generated file"
-          #git pull --rebase
-          git push -f
+          if git diff --cached --quiet; then
+            echo "没有文件变更，无需提交。"
+          else
+            git commit -m "自动更新 IPTV 列表 [skip ci]"
+            git pull --rebase  # 同步远程分支
+            git push  # 推送变更
+          fi
+
+
+
