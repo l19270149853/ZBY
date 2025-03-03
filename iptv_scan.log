@@ -1,0 +1,6 @@
+2025-03-03 18:48:22,707 - INFO - 正在验证: http://39.165.257hfhh52:9003/hls/1/index.m3u8
+2025-03-03 18:48:22,707 - INFO - 正在验证: http://39.165hfdkbhb.218.252/hls/1/index.m3u8
+2025-03-03 18:48:22,708 - INFO - 正在验证: http://39.165fgggg.218.252:9003/hls/1/index.m3u8
+2025-03-03 18:48:22,709 - INFO - 正在验证: http://invalid.url:abc/hls/1/index.m3u8
+2025-03-03 18:48:22,709 - INFO - 正在验证: https://example.com:8080/hls/1/index.m3u8
+2025-03-03 18:48:52,749 - INFO - 已保存 0 个有效地址
