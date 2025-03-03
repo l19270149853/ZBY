@@ -1,108 +1,118 @@
-﻿
 import re
-import time
-import logging
 import requests
-from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse, urlunparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 配置日志
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("iptv_scan.log"),
+        logging.StreamHandler()
+    ]
+)
 
-# 下载文件内容
-def download_file(url):
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # 检查请求是否成功
-        return response.text
-    except requests.RequestException as e:
-        logging.error(f"下载文件失败: {e}")
+class M3U8Scanner:
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        })
+
+    def _standardize_m3u8_url(self, raw_url):
+        """核心标准化方法"""
+        try:
+            # 自动补全协议头
+            if not re.match(r'^https?://', raw_url, re.I):
+                raw_url = f'http://{raw_url}'
+
+            # 解析URL组件
+            parsed = urlparse(raw_url)
+            
+            # 构造新URL
+            return urlunparse((
+                parsed.scheme or 'http',
+                parsed.netloc,
+                '/hls/1/index.m3u8',  # 固定路径
+                '',    # 清除params
+                '',    # 清除query
+                ''     # 清除fragment
+            )).replace('//hls', '/hls')  # 处理双斜杠问题
+
+        except Exception as e:
+            logging.error(f"URL标准化失败: {raw_url} - {str(e)}")
+            return None
+
+    def _speed_test(self, url):
+        """增强版速度测试"""
+        try:
+            start = time.time()
+            downloaded = 0
+            
+            with self.session.get(url, stream=True, timeout=5) as response:
+                response.raise_for_status()
+                
+                # 测试5秒内的下载速度
+                for chunk in response.iter_content(chunk_size=4096):
+                    downloaded += len(chunk)
+                    if time.time() - start > 5:
+                        break
+                
+            speed = (downloaded / 1024) / max(time.time() - start, 0.1)
+            return speed >= 1.0  # 1KB/s阈值
+        except Exception as e:
+            logging.debug(f"测速失败 {url}: {str(e)}")
+            return False
+
+    def process_url(self, raw_url):
+        """完整处理流程"""
+        std_url = self._standardize_m3u8_url(raw_url)
+        if not std_url:
+            return None
+        
+        logging.info(f"正在验证: {std_url}")
+        if self._speed_test(std_url):
+            return std_url
         return None
 
-# 匹配包含域名或IP的URL（支持带端口）
-def extract_urls(text):
-    pattern = re.compile(
-        r'http://'  # 协议头
-        r'(?:'  # 开始非捕获组
-        r'(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # IPv4地址
-        r'|'  # 或
-        r'(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'  # 域名
-        r')'  # 结束非捕获组
-        r'(?::\d{1,4})'  # 端口号
-        r'(?=/|$)',  # 确保URL结束或有路径
-        re.IGNORECASE
-    )
-    return pattern.findall(text)
-
-# 验证视频加载速度
-def check_video_speed(url, timeout=5, duration=5, min_speed=10):
-    try:
-        start_time = time.time()
-        response = requests.get(url, stream=True, timeout=timeout)
-        response.raise_for_status()
+    def batch_process(self, url_list):
+        """批量处理URL"""
+        valid_urls = []
         
-        downloaded_size = 0
-        for chunk in response.iter_content(chunk_size=1024):
-            if chunk:
-                downloaded_size += len(chunk)
-                if time.time() - start_time >= duration:
-                    break
-        
-        elapsed_time = time.time() - start_time
-        if elapsed_time == 0:  # 防止除零错误
-            return None
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {executor.submit(self.process_url, url): url for url in url_list}
             
-        speed = (downloaded_size / 1024) / elapsed_time  # KB/s
-        if speed >= min_speed:
-            logging.info(f"有效地址: {url} (网速: {speed:.2f} KB/s)")
-            return url.rstrip('/')  # 返回处理后的URL
-        else:
-            logging.warning(f"无效地址: {url} (网速: {speed:.2f} KB/s)")
-    except requests.RequestException as e:
-        logging.error(f"请求失败: {url} (错误: {e})")
-    return None
-
-# 多线程验证地址
-def validate_urls(urls, num_threads=10):
-    valid_urls = []
-    with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        futures = [executor.submit(check_video_speed, url) for url in urls]
-        for future in futures:
-            result = future.result()
-            if result:
-                valid_urls.append(result)
-    return valid_urls
-
-# 保存有效地址到文件
-def save_urls_to_file(urls, filename):
-    with open(filename, "w") as file:
-        for index, base_url in enumerate(urls, start=1):
-            full_url = f"{base_url}/hls/1/index.m3u8"
-            file.write(f"{index},{full_url}\n")
-    logging.info(f"已保存 {len(urls)} 个有效地址到 {filename}")
-
-# 主函数
-def main():
-    file_url = "https://d.kstore.dev/download/10694/hlstvid.txt"
-    output_file = "tv1.txt"
-
-    # 下载并处理文件
-    if (content := download_file(file_url)) is not None:
-        # 提取并去重URL
-        raw_urls = list(set(extract_urls(content)))
-        logging.info(f"发现 {len(raw_urls)} 个待验证地址")
+            for future in as_completed(futures):
+                url = futures[future]
+                try:
+                    if result := future.result():
+                        valid_urls.append(result)
+                        logging.info(f"验证通过: {result}")
+                except Exception as e:
+                    logging.error(f"处理异常 {url}: {str(e)}")
         
-        # 验证地址
-        valid_urls = validate_urls(raw_urls)
-        
-        # 保存结果
-        if valid_urls:
-            save_urls_to_file(valid_urls, output_file)
-        else:
-            logging.warning("未找到有效地址")
+        return valid_urls
 
+    def save_results(self, valid_urls):
+        """保存结果文件"""
+        with open("valid_m3u8.txt", "w") as f:
+            f.write("# 最后更新: " + time.strftime("%Y-%m-%d %H:%M") + "\n")
+            for idx, url in enumerate(valid_urls, 1):
+                f.write(f"{idx},{url}\n")
+        logging.info(f"已保存 {len(valid_urls)} 个有效地址")
+
+# 测试用例
 if __name__ == "__main__":
-    main()
-
-
-
-
+    scanner = M3U8Scanner()
+    
+    test_urls = [
+        "39.165.257hfhh52:9003/hls/23/ind",
+        "http://39.165hfdkbhb.218.252",
+        "http://39.165fgggg.218.252:9003",
+        "invalid.url:abc",
+        "https://example.com:8080/live/stream?token=123"
+    ]
+    
+    valid = scanner.batch_process(test_urls)
+    scanner.save_results(valid)
