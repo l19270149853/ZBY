@@ -205,11 +205,11 @@ class IPTVScanner:
 if __name__ == "__main__":
     # 测试用例
     test_cases = [
-        "39.165.257hfhh52:9003/hls/23/ind",
-        "http://39.165hfdkbhb.218.252",
-        "http://39.165fgggg.218.252:9003",
-        "192.168.1.1:8080/any/path",
-        "invalid.url:abc"
+        "http://223.10.50.244:2008/hls/1/index.m3u8/hls/23/ind",
+        "http://113.26.155.109:2008/hls/1/index.m3u8",
+        "http://b65aeec6897a9f71.jomoxc.com:808/hls/23/index.m3u8$上海标清",
+        "beat-map.sczhgx.com:8098/hls/1/index.m3u8$",
+        "dqy12.org/hls/4/index.m3u8:abc"
     ]
     
     # 初始化扫描器
