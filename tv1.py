@@ -1,4 +1,4 @@
-﻿import requests
+import requests
 import re
 import time
 
@@ -10,7 +10,8 @@ def test_url(url, total_duration=6, timeout=3, min_speed_kb=10):
     start = time.time()
     end_time = start + total_duration
     bytes_downloaded = 0
-    
+    speed = 0.0
+
     try:
         with requests.get(url, stream=True, timeout=timeout) as r:
             r.raise_for_status()
@@ -18,11 +19,13 @@ def test_url(url, total_duration=6, timeout=3, min_speed_kb=10):
                 bytes_downloaded += len(chunk)
                 if time.time() > end_time:
                     break
-                
+            
             duration = max(time.time() - start, 0.1)
-            return (bytes_downloaded / duration) >= min_speed_kb * 1024
-    except:
-        return False
+            speed = (bytes_downloaded / duration) / 1024  # 转换为KB/s
+            return speed >= min_speed_kb, round(speed, 2)
+            
+    except Exception as e:
+        return False, 0.0
 
 def main():
     try:
@@ -32,12 +35,17 @@ def main():
         
         valid = []
         for url in targets:
-            print(f"Testing {url}")
-            if test_url(url):
+            print(f"测试 {url}", end="")
+            valid_flag, speed = test_url(url)
+            
+            if valid_flag:
                 valid.append(url)
-                print("✅ Valid")
+                print(f" ✅ 有效 {speed}KB/s")
             else:
-                print("❌ Invalid")
+                if speed > 0:
+                    print(f" ❌ 无效 {speed}KB/s")
+                else:
+                    print(" ❌ 超时/连接失败")
         
         with open("tv1.txt", "w") as f:
             f.write("\n".join(f"{i+1},{url}" for i, url in enumerate(valid)))
@@ -45,5 +53,4 @@ def main():
     except Exception as e:
         print(f"Error: {str(e)}")
 
-if __name__ == "__main__":
-    main()
+if __name__
