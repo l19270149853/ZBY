@@ -1,11 +1,10 @@
-
 name: TV List Updater
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths-ignore: ['tv1.txt']
+    paths-ignore: ['tv1.txt', 'tv2.txt']
   schedule:
     - cron: "0 */6 * * *"
 
@@ -36,6 +35,6 @@ jobs:
       run: |
         git config --global user.name "l19270149853"
         git config --global user.email "362213335lkh@gmail.com"
-        git add tv1.txt
-        git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update tv1.txt [skip ci]"
+        git add tv1.txt tv2.txt
+        git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update tv1.txt and tv2.txt [skip ci]"
         git push
