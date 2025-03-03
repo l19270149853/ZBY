@@ -1,7 +1,6 @@
-1,http://125.44.164.36:8888/hls/1/index.m3u8
+1,http://gd.wsd.gd.cn:1698/hls/1/index.m3u8
 2,http://183.239.236.91:8088/hls/1/index.m3u8
 3,http://xyx2.ikuai6.com:888/hls/1/index.m3u8
-4,http://gd.wsd.gd.cn:1698/hls/1/index.m3u8
+4,http://125.44.164.36:8888/hls/1/index.m3u8
 5,http://218.19.108.13:808/hls/1/index.m3u8
-6,http://smtp.sczhgx.com:8098/hls/1/index.m3u8
-7,http://111.36.102.239:8089/hls/1/index.m3u8
+6,http://111.36.102.239:8089/hls/1/index.m3u8
