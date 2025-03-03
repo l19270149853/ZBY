@@ -1,130 +1,131 @@
 import requests
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import logging
+import concurrent.futures
 from urllib.parse import urlparse
+import logging
 
-# 配置日志格式
+# 配置日志
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler()]
 )
 
-class SpeedValidator:
+class StableSpeedTester:
     def __init__(self):
-        self.default_headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "*/*",
-            "Connection": "keep-alive"
+        self.session = requests.Session()
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "*/*"
         }
 
-    def _enhance_url(self, url):
-        """URL标准化处理"""
-        parsed = urlparse(url)
+    def _normalize_url(self, raw_url):
+        """标准化URL格式"""
+        parsed = urlparse(raw_url)
         if not parsed.scheme:
-            url = f"http://{url}"
-        return url.strip()
+            return f"http://{raw_url.strip('/')}/hls/1/index.m3u8"
+        return f"{parsed.scheme}://{parsed.netloc}/hls/1/index.m3u8"
 
-    def check_video_speed(self, url, timeout=8, duration=6, min_speed=5, max_retries=2):
-        """
-        增强版速度检测函数
-        :param url: 待检测的URL
-        :param timeout: 单次请求超时时间(秒)
-        :param duration: 最大检测时长(秒)
-        :param min_speed: 最低速度要求(KB/s)
-        :param max_retries: 最大重试次数
-        :return: (有效URL, 实测速度) 或 (None, 0)
-        """
-        url = self._enhance_url(url)
+    def _test_single_url(self, url, timeout=8, duration=6, min_speed=5):
+        """带超时保护的单URL测试"""
         best_speed = 0
-        last_error = None
+        end_time = time.monotonic() + duration + 2  # 总超时保护
 
-        for attempt in range(max_retries + 1):
-            try:
-                start_time = time.perf_counter()
-                end_time = start_time + duration
-                total_size = 0
+        try:
+            # 第一阶段：快速连接测试
+            with self.session.get(url, headers=self.headers, 
+                                timeout=(3, 3), stream=True, verify=False) as resp:
+                if resp.status_code != 200:
+                    return None, 0
 
-                with requests.get(url, stream=True, 
-                                 headers=self.default_headers,
-                                 timeout=(timeout, timeout),
-                                 verify=False) as response:
-                    
-                    response.raise_for_status()
+            # 第二阶段：速度测试
+            start = time.monotonic()
+            downloaded = 0
+            with self.session.get(url, headers=self.headers, 
+                                timeout=(timeout, timeout), stream=True, verify=False) as resp:
+                resp.raise_for_status()
+                
+                for chunk in resp.iter_content(chunk_size=4096):
+                    downloaded += len(chunk)
+                    if time.monotonic() - start >= duration:
+                        break
+                    if time.monotonic() > end_time:  # 全局超时保护
+                        raise TimeoutError("Global timeout reached")
 
-                    # 分块下载数据
-                    for chunk in response.iter_content(chunk_size=4096):
-                        if chunk:
-                            total_size += len(chunk)
-                            if time.perf_counter() >= end_time:
-                                break
+            elapsed = max(time.monotonic() - start, 0.1)
+            best_speed = (downloaded / 1024) / elapsed
+            if best_speed >= min_speed:
+                return url, round(best_speed, 2)
 
-                    # 计算实际有效时长
-                    elapsed = max(time.perf_counter() - start_time, 0.1)
-                    current_speed = (total_size / 1024) / elapsed
-
-                    # 更新最佳速度
-                    if current_speed > best_speed:
-                        best_speed = current_speed
-
-                    if best_speed >= min_speed:
-                        logging.debug(f"尝试 {attempt+1} 成功: {url} ({best_speed:.2f}KB/s)")
-                        return url, round(best_speed, 2)
-
-            except requests.exceptions.RequestException as e:
-                last_error = str(e)
-                logging.debug(f"尝试 {attempt+1} 失败: {url} ({e.__class__.__name__})")
-                time.sleep(1)  # 失败后等待
-                continue
-
-            except Exception as e:
-                last_error = str(e)
-                logging.error(f"未知错误: {url} ({str(e)})")
-                break
-
-        error_type = last_error.split(":")[0] if last_error else "Unknown"
-        logging.warning(f"最终失败: {url} | 原因: {error_type} | 最佳速度: {best_speed:.2f}KB/s")
+        except requests.exceptions.RequestException as e:
+            logging.debug(f"请求失败 {url}: {type(e).__name__}")
+        except Exception as e:
+            logging.error(f"未知错误 {url}: {str(e)}")
+        
         return None, round(best_speed, 2)
 
-    def validate_urls(self, urls, max_workers=15, progress_callback=None):
-        """
-        并发验证URL列表
-        :param urls: URL列表
-        :param max_workers: 最大并发数
-        :param progress_callback: 进度回调函数
-        :return: 有效URL列表 (带速度信息)
-        """
-        valid_results = []
-        total = len(urls)
-        
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(self.check_video_speed, url): url for url in urls}
-            
-            for idx, future in enumerate(as_completed(futures), 1):
-                result_url, speed = future.result()
-                if result_url:
-                    valid_results.append((result_url, speed))
-                
-                if progress_callback:
-                    progress_callback(idx, total)
+    def safe_test_url(self, url, max_retries=1):
+        """带重试的安全测试"""
+        for _ in range(max_retries + 1):
+            result, speed = self._test_single_url(url)
+            if result:
+                return result, speed
+            time.sleep(0.5)
+        return None, speed
 
-        # 按速度降序排序
-        return sorted(valid_results, key=lambda x: x[1], reverse=True)
+    def batch_test(self, url_list, max_workers=8, timeout=30):
+        """防卡死的批量测试"""
+        results = []
+        
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=max_workers,
+            thread_name_prefix="Tester"
+        ) as executor:
+            
+            futures = {
+                executor.submit(self.safe_test_url, url): url
+                for url in (self._normalize_url(u) for u in url_list)
+            }
+
+            try:
+                for future in concurrent.futures.as_completed(
+                    futures, 
+                    timeout=timeout  # 总体超时控制
+                ):
+                    url = futures[future]
+                    try:
+                        result, speed = future.result(timeout=1)  # 单任务结果超时
+                        if result:
+                            results.append((result, speed))
+                            logging.info(f"有效: {result} ({speed}KB/s)")
+                        else:
+                            logging.debug(f"无效: {url}")
+                    except concurrent.futures.TimeoutError:
+                        logging.warning(f"任务超时: {url}")
+            except concurrent.futures.TimeoutError:
+                logging.error("总体执行超时，终止剩余任务")
+
+        # 按速度排序并去重
+        seen = set()
+        return sorted(
+            ([url, speed] for url, speed in results if not (url in seen or seen.add(url))),
+            key=lambda x: x[1], 
+            reverse=True
+        )
 
 # 使用示例
 if __name__ == "__main__":
-    validator = SpeedValidator()
+    tester = StableSpeedTester()
     
-    # 测试URL列表
     test_urls = [
-        "http://example.com:8080/hls/1/index.m3u8",
-        "http://invalid.example.com/video.m3u8"
+        "example.com:8080",
+        "http://125.44.164.36:8888",
+        "invalid.url:9999"
     ]
     
-    print("开始速度验证...")
-    valid_list = validator.validate_urls(test_urls)
+    print("开始稳定测试...")
+    valid_list = tester.batch_test(test_urls)
     
-    print("\n验证结果：")
+    print("\n最终有效地址：")
     for idx, (url, speed) in enumerate(valid_list, 1):
-        print(f"{idx}. {url.ljust(55)} 速度: {speed}KB/s")
+        print(f"{idx}. {url.ljust(50)} 速度: {speed}KB/s")
