@@ -2,6 +2,7 @@ import re
 import time
 import logging
 import requests
+import os
 from concurrent.futures import ThreadPoolExecutor
 
 # 配置日志
@@ -33,7 +34,7 @@ def extract_urls(text):
     return pattern.findall(text)
 
 # 验证视频加载速度
-def check_video_speed(url, timeout=5, duration=5, min_speed=10):
+def check_video_speed(url, timeout=10, duration=5, min_speed=10):
     try:
         start_time = time.time()
         response = requests.get(url, stream=True, timeout=timeout)
@@ -101,6 +102,9 @@ def main():
     file_url = "https://d.kstore.dev/download/10694/hlstvid.txt"
     output_file = "tv1.txt"
     final_output_file = "tv2.txt"
+
+    # 检查当前工作目录
+    logging.info(f"当前工作目录: {os.getcwd()}")
 
     # 下载并处理文件
     if (content := download_file(file_url)) is not None:
