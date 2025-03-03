@@ -18,7 +18,7 @@ def download_file(url):
         logging.error(f"下载文件失败: {e}")
         return None
 
-# 匹配包含域名或IP的URL（支持带端口）
+# 提取URL
 def extract_urls(text):
     pattern = re.compile(
         r'http://'  # 协议头
@@ -61,7 +61,19 @@ def check_video_speed(url, timeout=10, duration=5, min_speed=10):
         logging.error(f"请求失败: {url} (错误: {e})")
     return None
 
-# 多线程验证地址
+# 提取基础URL
+def extract_base_url(url):
+    """
+    从URL中提取基础URL（去掉路径部分）。
+    例如：http://36.129.204.117:9003/hls/1/index.m3u8 -> http://36.129.204.117:9003
+    """
+    pattern = re.compile(r"(http://[^/]+)")
+    match = pattern.match(url)
+    if match:
+        return match.group(1)
+    return None
+
+# 多线程验证URL
 def validate_urls(urls, num_threads=10):
     valid_urls = []
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
@@ -70,9 +82,21 @@ def validate_urls(urls, num_threads=10):
             result = future.result()
             if result:
                 valid_urls.append(result)
+            else:
+                # 如果URL验证失败，提取基础URL并检查相邻路径
+                base_url = extract_base_url(future._args[0])  # 提取基础URL
+                if base_url:
+                    # 检查1到20的路径
+                    for i in range(1, 21):
+                        new_url = f"{base_url}/hls/{i}/index.m3u8"
+                        new_result = check_video_speed(new_url)
+                        if new_result:
+                            valid_urls.append(new_result)
+                            break  # 找到有效URL后退出循环
+
     return valid_urls
 
-# 保存有效地址到文件
+# 保存有效URL到文件
 def save_urls_to_file(urls, filename):
     with open(filename, "w") as file:
         for index, base_url in enumerate(urls, start=1):
@@ -80,7 +104,7 @@ def save_urls_to_file(urls, filename):
             file.write(f"{index},{full_url}\n")
     logging.info(f"已保存 {len(urls)} 个有效地址到 {filename}")
 
-# 处理每一行数据，生成 150 个新地址
+# 处理每一行数据
 def process_line(line):
     match = re.match(r"(\d+),http://(.+?)/hls/\d+/index\.m3u8", line)
     if not match:
@@ -89,7 +113,7 @@ def process_line(line):
     index, base_url = match.groups()
     results = []
 
-    # 生成 150 个新地址
+    # 生成150个新地址
     for i in range(1, 151):
         new_index = f"{index}A{i}"
         new_url = f"http://{base_url}/hls/{i}/index.m3u8"
