@@ -37,4 +37,5 @@ jobs:
         git config --global user.email "362213335lkh@gmail.com"
         git add tv1.txt tv2.txt
         git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update tv1.txt and tv2.txt [skip ci]"
-        git push
+        git pull --rebase origin main  # 拉取远程最新更改并合并
+        git push origin main
