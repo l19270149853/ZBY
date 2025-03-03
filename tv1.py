@@ -1,9 +1,11 @@
+import logging
+import time  # 新增必要的导入
 import re
 import requests
 from urllib.parse import urlparse, urlunparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# 配置日志
+# 配置日志（现在可以正常工作了）
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -23,23 +25,18 @@ class M3U8Scanner:
     def _standardize_m3u8_url(self, raw_url):
         """核心标准化方法"""
         try:
-            # 自动补全协议头
             if not re.match(r'^https?://', raw_url, re.I):
                 raw_url = f'http://{raw_url}'
 
-            # 解析URL组件
             parsed = urlparse(raw_url)
-            
-            # 构造新URL
             return urlunparse((
                 parsed.scheme or 'http',
                 parsed.netloc,
-                '/hls/1/index.m3u8',  # 固定路径
-                '',    # 清除params
-                '',    # 清除query
-                ''     # 清除fragment
-            )).replace('//hls', '/hls')  # 处理双斜杠问题
-
+                '/hls/1/index.m3u8',
+                '',
+                '',
+                ''
+            )).replace('//hls', '/hls')
         except Exception as e:
             logging.error(f"URL标准化失败: {raw_url} - {str(e)}")
             return None
@@ -53,14 +50,13 @@ class M3U8Scanner:
             with self.session.get(url, stream=True, timeout=5) as response:
                 response.raise_for_status()
                 
-                # 测试5秒内的下载速度
                 for chunk in response.iter_content(chunk_size=4096):
                     downloaded += len(chunk)
                     if time.time() - start > 5:
                         break
                 
             speed = (downloaded / 1024) / max(time.time() - start, 0.1)
-            return speed >= 1.0  # 1KB/s阈值
+            return speed >= 1.0
         except Exception as e:
             logging.debug(f"测速失败 {url}: {str(e)}")
             return False
@@ -102,7 +98,6 @@ class M3U8Scanner:
                 f.write(f"{idx},{url}\n")
         logging.info(f"已保存 {len(valid_urls)} 个有效地址")
 
-# 测试用例
 if __name__ == "__main__":
     scanner = M3U8Scanner()
     
