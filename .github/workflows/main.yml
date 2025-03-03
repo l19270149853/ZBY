@@ -1,0 +1,41 @@
+
+name: TV List Updater
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore: ['tv1.txt']
+  schedule:
+    - cron: "0 */6 * * *"
+
+jobs:
+  update-list:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: pip install requests
+
+    - name: Run test script
+      run: python tv1.py
+
+    - name: Commit changes
+      run: |
+        git config --global user.name "l19270149853"
+        git config --global user.email "362213335lkh@gmail.com"
+        git add tv1.txt
+        git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update tv1.txt [skip ci]"
+        git push
