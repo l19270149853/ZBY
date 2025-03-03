@@ -1,98 +1,139 @@
-import requests
+import re
 import time
-import concurrent.futures
 import logging
-from urllib.parse import urlparse
+import requests
+from concurrent.futures import ThreadPoolExecutor
 
-# 调试模式配置
-DEBUG_MODE = True
+# 配置日志
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-logging.basicConfig(
-    level=logging.DEBUG if DEBUG_MODE else logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()]
-)
+# 下载文件内容
+def download_file(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # 检查请求是否成功
+        return response.text
+    except requests.RequestException as e:
+        logging.error(f"下载文件失败: {e}")
+        return None
 
-class EnhancedTester:
-    def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Accept": "*/*",
-            "Accept-Language": "en-US,en;q=0.9",
-        })
+# 匹配包含域名或IP的URL（支持带端口）
+def extract_urls(text):
+    pattern = re.compile(
+        r'http://'  # 协议头
+        r'(?:'  # 开始非捕获组
+        r'(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # IPv4地址
+        r'|'  # 或
+        r'(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'  # 域名
+        r')'  # 结束非捕获组
+        r'(?::\d{1,4})'  # 端口号
+        r'(?=/|$)',  # 确保URL结束或有路径
+        re.IGNORECASE
+    )
+    return pattern.findall(text)
+
+# 验证视频加载速度
+def check_video_speed(url, timeout=5, duration=5, min_speed=10):
+    try:
+        start_time = time.time()
+        response = requests.get(url, stream=True, timeout=timeout)
+        response.raise_for_status()
         
-    def _normalize_url(self, raw_url):
-        """增强URL处理"""
-        try:
-            # 自动补全缺失部分
-            if "://" not in raw_url:
-                raw_url = f"http://{raw_url}"
-                
-            parsed = urlparse(raw_url)
-            if not parsed.path or "index.m3u8" not in parsed.path:
-                return f"{parsed.scheme}://{parsed.netloc}/hls/1/index.m3u8"
-            return raw_url
-        except Exception as e:
-            logging.error(f"URL处理失败: {raw_url} - {str(e)}")
+        downloaded_size = 0
+        for chunk in response.iter_content(chunk_size=1024):
+            if chunk:
+                downloaded_size += len(chunk)
+                if time.time() - start_time >= duration:
+                    break
+        
+        elapsed_time = time.time() - start_time
+        if elapsed_time == 0:  # 防止除零错误
             return None
-
-    def _test_url(self, url):
-        """增强测试方法"""
-        try:
-            # 第一阶段：快速连通性测试
-            start = time.monotonic()
-            resp = self.session.head(url, timeout=5, allow_redirects=True)
-            if resp.status_code != 200:
-                logging.debug(f"初步检查失败 [{resp.status_code}]: {url}")
-                return None, 0
-
-            # 第二阶段：速度测试
-            downloaded = 0
-            speed = 0
-            with self.session.get(url, stream=True, timeout=10) as response:
-                response.raise_for_status()
-                
-                for chunk in response.iter_content(chunk_size=4096):
-                    downloaded += len(chunk)
-                    if time.monotonic() - start > 8:  # 最长8秒
-                        break
-                        
-                elapsed = max(time.monotonic() - start, 0.1)
-                speed = (downloaded / 1024) / elapsed
-                return url, round(speed, 2)
-                
-        except Exception as e:
-            error_type = type(e).__name__
-            logging.debug(f"测试失败 [{error_type}]: {url}")
-            return None, 0
-
-    def run(self, urls):
-        """执行测试"""
-        valid = []
-        
-        # 预处理URL
-        processed_urls = [self._normalize_url(u) for u in urls]
-        processed_urls = [u for u in processed_urls if u is not None]
-        
-        if not processed_urls:
-            logging.error("无有效URL可测试")
-            return []
             
-        logging.info(f"开始测试 {len(processed_urls)} 个URL...")
+        speed = (downloaded_size / 1024) / elapsed_time  # KB/s
+        if speed >= min_speed:
+            logging.info(f"有效地址: {url} (网速: {speed:.2f} KB/s)")
+            return url.rstrip('/')  # 返回处理后的URL
+        else:
+            logging.warning(f"无效地址: {url} (网速: {speed:.2f} KB/s)")
+    except requests.RequestException as e:
+        logging.error(f"请求失败: {url} (错误: {e})")
+    return None
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-            futures = {executor.submit(self._test_url, url): url for url in processed_urls}
-            
-            for future in concurrent.futures.as_completed(futures, timeout=30):
-                url = futures[future]
-                try:
-                    result_url, speed = future.result()
-                    if result_url:
-                        valid.append((result_url, speed))
-                        logging.info(f"✅ 有效地址: {result_url} ({speed}KB/s)")
-                except Exception as e:
-                    logging.error(f"任务异常: {url} - {str(e)}")
+# 多线程验证地址
+def validate_urls(urls, num_threads=10):
+    valid_urls = []
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = [executor.submit(check_video_speed, url) for url in urls]
+        for future in futures:
+            result = future.result()
+            if result:
+                valid_urls.append(result)
+    return valid_urls
 
-        # 按速度排序
-        return sorted(valid, key=lambda x: x[1], reverse
+# 保存有效地址到文件
+def save_urls_to_file(urls, filename):
+    with open(filename, "w") as file:
+        for index, base_url in enumerate(urls, start=1):
+            full_url = f"{base_url}/hls/1/index.m3u8"
+            file.write(f"{index},{full_url}\n")
+    logging.info(f"已保存 {len(urls)} 个有效地址到 {filename}")
+
+# 处理每一行数据，生成 150 个新地址
+def process_line(line):
+    match = re.match(r"(\d+),http://(.+?)/hls/\d+/index\.m3u8", line)
+    if not match:
+        return None
+
+    index, base_url = match.groups()
+    results = []
+
+    # 生成 150 个新地址
+    for i in range(1, 151):
+        new_index = f"{index}A{i}"
+        new_url = f"http://{base_url}/hls/{i}/index.m3u8"
+        results.append(f"{new_index},{new_url}")
+
+    return results
+
+# 主函数
+def main():
+    file_url = "https://d.kstore.dev/download/10694/hlstvid.txt"
+    output_file = "tv1.txt"
+    final_output_file = "tv2.txt"
+
+    # 下载并处理文件
+    if (content := download_file(file_url)) is not None:
+        # 提取并去重URL
+        raw_urls = list(set(extract_urls(content)))
+        logging.info(f"发现 {len(raw_urls)} 个待验证地址")
+        
+        # 验证地址
+        valid_urls = validate_urls(raw_urls)
+        
+        # 保存结果
+        if valid_urls:
+            save_urls_to_file(valid_urls, output_file)
+        else:
+            logging.warning("未找到有效地址")
+
+    # 处理生成的新地址
+    try:
+        with open(output_file, "r") as infile, open(final_output_file, "w") as outfile:
+            for line in infile:
+                line = line.strip()
+                if not line:
+                    continue
+
+                # 处理每一行
+                processed_lines = process_line(line)
+                if processed_lines:
+                    for processed_line in processed_lines:
+                        outfile.write(processed_line + "\n")
+
+        logging.info(f"处理完成，结果已保存到 {final_output_file}")
+    except Exception as e:
+        logging.error(f"处理文件时出错: {e}")
+
+if __name__ == "__main__":
+    main()
