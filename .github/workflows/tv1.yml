@@ -1,42 +1,53 @@
-name: tv1
+name: IPTV AutoUpdater
 
 on:
   schedule:
-    - cron: '0 21 * * *'  # 每天 21:00 UTC 触发
+    - cron: '0 21 * * *'  # 每天UTC时间21:00运行
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
-  build:
+  update:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          clean: true
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests futures
+          pip install requests
 
-      - name: Run tv1
-        run: python tv1.py
+      - name: Run Scanner
+        run: |
+          python tv1.py
+          echo "扫描日志："
+          cat iptv_scan.log
 
-      - name: Commit and push changes
+      - name: Commit changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global user.email "362213335lkh@gmail.com"
           git config --global user.name "l19270149853"
-          git add tv1.txt  # 关键添加
-          git commit -m "自动更新 IPTV 列表 [skip ci]"
-          git pull --rebase
-          git push origin main
+          git config --global user.email "362213335lkh@gmail.com"
+          
+          git add tv1.txt iptv_scan.log
+          
+          if ! git diff --cached --quiet; then
+            git commit -m "自动更新IPTV列表 [skip ci]"
+            git pull --rebase
+            git push origin main
+            echo "更新已推送"
+          else
+            echo "无内容变更"
+          fi
