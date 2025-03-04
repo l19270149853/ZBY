@@ -83,22 +83,25 @@ def extract_base_url(url):
 def validate_urls(urls, num_threads=10):
     valid_urls = []
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        futures = [executor.submit(check_video_speed, url) for url in urls]
-        for future in futures:
+        future_url_dict = {}
+        for url in urls:
+            future = executor.submit(check_video_speed, url)
+            future_url_dict[future] = url
+
+        for future in future_url_dict:
             result = future.result()
             if result:
                 valid_urls.append(result)
             else:
-                # 如果URL验证失败，提取基础URL并检查相邻路径
-                base_url = extract_base_url(future.args[0])  # 提取基础URL
+                url = future_url_dict[future]
+                base_url = extract_base_url(url)
                 if base_url:
-                    # 检查1到20的路径
                     for i in range(1, 21):
                         new_url = f"{base_url}/hls/{i}/index.m3u8"
                         new_result = check_video_speed(new_url)
                         if new_result:
                             valid_urls.append(new_result)
-                            break  # 找到有效URL后退出循环
+                            break
 
     return valid_urls
 
@@ -173,5 +176,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
