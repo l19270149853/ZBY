@@ -20,6 +20,11 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Configure Git
+      run: |
+        git config --global user.name "l19270149853"
+        git config --global user.email "362213335lkh@gmail.com"
+
     - name: Setup Python
       uses: actions/setup-python@v4
       with:
@@ -33,9 +38,11 @@ jobs:
 
     - name: Commit changes
       run: |
-        git config --global user.name "l19270149853"
-        git config --global user.email "362213335lkh@gmail.com"
         git add tv1.txt tv2.txt
-        git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update tv1.txt and tv2.txt [skip ci]"
-        git pull origin main  # 拉取远程最新更改
-        git push -f origin main  # 强制推送本地更改
+        # 仅在检测到文件变化时提交
+        if ! git diff --quiet || ! git diff --staged --quiet; then
+          git commit -m "Auto-update tv1.txt and tv2.txt [skip ci]"
+        fi
+
+    - name: Force Push changes
+      run: git push -f origin main
