@@ -38,7 +38,7 @@ def extract_urls(text):
 
 
 # 验证视频加载速度
-def check_video_speed(url, timeout=3, duration=3, min_speed=10):
+def check_video_speed(url, timeout=3, duration=3, min_speed=0.1):
     try:
         start_time = time.time()
         response = requests.get(url, stream=True, timeout=timeout)
@@ -57,7 +57,6 @@ def check_video_speed(url, timeout=3, duration=3, min_speed=10):
 
         speed = (downloaded_size / 1024) / elapsed_time  # KB/s
         if speed >= min_speed:
-            logging.info(f"有效地址: {url} (网速: {speed:.2f} KB/s)")
             return url.rstrip('/')  # 返回处理后的URL
         else:
             logging.warning(f"无效地址: {url} (网速: {speed:.2f} KB/s)")
@@ -80,7 +79,7 @@ def extract_base_url(url):
 
 
 # 多线程验证URL
-def validate_urls(urls, num_threads=10):
+def validate_urls(urls, num_threads=20):
     valid_urls = []
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         future_url_dict = {}
@@ -106,25 +105,29 @@ def validate_urls(urls, num_threads=10):
     return valid_urls
 
 
+# 处理每一行数据，生成新的地址格式
+def process_line(index, base_url):
+    results = []
+    for i in range(1, 101):
+        new_index = f"{index}A{i}"
+        new_url = f"{base_url}/hls/{i}/index.m3u8"
+        result = check_video_speed(new_url)
+        if result:
+            results.append(f"{new_index},{result}")
+    return results
+
+
 # 保存有效URL到文件
 def save_urls_to_file(urls, filename):
     with open(filename, "w") as file:
-        for index, base_url in enumerate(urls, start=1):
-            full_url = f"{base_url}/hls/1/index.m3u8"
-            file.write(f"{index},{full_url}\n")
+        for index, url in enumerate(urls, start=1):
+            match = re.match(r'http://([^/]+)', url)
+            if match:
+                base_url = match.group(0)
+                processed_lines = process_line(index, base_url)
+                for processed_line in processed_lines:
+                    file.write(processed_line + "\n")
     logging.info(f"已保存 {len(urls)} 个有效地址到 {filename}")
-
-
-# 处理每一行数据
-def process_line(base_url):
-    results = []
-    base = "http://112.2.16.180:808"
-    for i in range(1, 101):
-        new_url = f"{base}/hls/{i}/index.m3u8"
-        result = check_video_speed(new_url)
-        if result:
-            results.append(result)
-    return results
 
 
 # 主函数
@@ -153,21 +156,18 @@ def main():
 
     # 处理生成的新地址
     try:
-        all_valid_urls = []
-        with open(output_file, "r") as infile:
+        logging.info(f"正在处理生成的新地址并保存到 {final_output_file}")
+        with open(output_file, "r") as infile, open(final_output_file, "w") as outfile:
             for line in infile:
                 line = line.strip()
                 if not line:
                     continue
                 match = re.match(r"(\d+),http://(.+?)/hls/\d+/index\.m3u8", line)
                 if match:
-                    base_url = match.group(2)
-                    new_valid_urls = process_line(base_url)
-                    all_valid_urls.extend(new_valid_urls)
-
-        with open(final_output_file, "w") as outfile:
-            for index, url in enumerate(all_valid_urls, start=1):
-                outfile.write(f"{index},{url}\n")
+                    index, base_url = match.groups()
+                    new_valid_urls = process_line(index, f"http://{base_url}")
+                    for new_valid_url in new_valid_urls:
+                        outfile.write(new_valid_url + "\n")
 
         logging.info(f"处理完成，结果已保存到 {final_output_file}")
     except Exception as e:
@@ -176,4 +176,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
