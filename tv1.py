@@ -103,14 +103,15 @@ def validate_urls(urls, num_threads=10):
     """
     valid_urls = []
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        futures = [executor.submit(check_video_speed, url) for url in urls]
+        futures = {executor.submit(check_video_speed, url): url for url in urls}
         for future in futures:
+            url = futures[future]
             result = future.result()
             if result:
                 valid_urls.append(result)
             else:
                 # 如果URL验证失败，提取基础URL并检查相邻路径
-                base_url = extract_base_url(future._args[0])  # 提取基础URL
+                base_url = extract_base_url(url)  # 提取基础URL
                 if base_url:
                     # 检查1到20的路径
                     for i in range(1, 21):
