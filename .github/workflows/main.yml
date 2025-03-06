@@ -6,7 +6,7 @@ on:
     branches: [main]
     paths-ignore: ['tv1.txt', 'tv2.txt']
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */12 * * *"
 
 jobs:
   update-list:
