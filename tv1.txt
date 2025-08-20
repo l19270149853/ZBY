@@ -76,9 +76,12 @@
 1A76,http://120.238.5.44:1698/hls/76/index.m3u8
 1A77,http://120.238.5.44:1698/hls/77/index.m3u8
 1A78,http://120.238.5.44:1698/hls/78/index.m3u8
+1A79,http://120.238.5.44:1698/hls/79/index.m3u8
+1A80,http://120.238.5.44:1698/hls/80/index.m3u8
+1A81,http://120.238.5.44:1698/hls/81/index.m3u8
+1A82,http://120.238.5.44:1698/hls/82/index.m3u8
 1A83,http://120.238.5.44:1698/hls/83/index.m3u8
+1A84,http://120.238.5.44:1698/hls/84/index.m3u8
 1A85,http://120.238.5.44:1698/hls/85/index.m3u8
 1A86,http://120.238.5.44:1698/hls/86/index.m3u8
-1A87,http://120.238.5.44:1698/hls/87/index.m3u8
-1A88,http://120.238.5.44:1698/hls/88/index.m3u8
 1A91,http://120.238.5.44:1698/hls/91/index.m3u8
