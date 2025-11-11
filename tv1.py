@@ -122,8 +122,8 @@ def save_urls_to_file(urls, filename):
 
 def main():
     file_url = "https://d.kstore.dev/download/10694/hlstvid.txt"
-    output_file = "tv1.txt"
-    final_output_file = "tv2.txt"
+    output_file = "h1.txt"
+    final_output_file = "h2.txt"
 
     logging.info(f"当前工作目录: {os.getcwd()}")
 
@@ -158,3 +158,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
