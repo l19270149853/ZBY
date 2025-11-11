@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths-ignore: ['tv1.txt', 'tv2.txt']
+    paths-ignore: ['h1.txt', 'h2.txt']
   schedule:
     - cron: "0 */12 * * *"
 
@@ -38,10 +38,10 @@ jobs:
 
     - name: Commit changes
       run: |
-        git add tv1.txt tv2.txt
+        git add h1.txt h2.txt
         # 仅在检测到文件变化时提交
         if ! git diff --quiet || ! git diff --staged --quiet; then
-          git commit -m "Auto-update tv1.txt and tv2.txt [skip ci]"
+          git commit -m "Auto-update h1.txt and h2.txt [skip ci]"
         fi
 
     - name: Force Push changes
