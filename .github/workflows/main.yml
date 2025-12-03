@@ -6,7 +6,7 @@ on:
     branches: [main]
     paths-ignore: ['h1.txt', 'h2.txt']
   schedule:
-    - cron: "1 */12 * * *"
+    - cron: "0 */12 * * *"
 
 jobs:
   update-list:
